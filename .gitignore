@@ -1,0 +1,28 @@
+# Ignore almost everything
+*
+!*/
+
+# Allow our OpenVPN-Install project files
+!.github/
+!.github/workflows/
+!.github/workflows/**
+
+!openvpn-install.sh
+!README.md
+!LICENSE
+!SETUP_COMPLETE.md
+!workspace.gitignore
+!.gitignore
+
+!scripts/
+!scripts/**
+
+!config/
+!config/**
+
+!docs/
+!docs/**
+
+# Keep git files
+!.git
+!.gitkeep

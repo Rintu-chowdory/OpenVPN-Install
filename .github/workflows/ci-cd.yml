@@ -1,0 +1,83 @@
+name: CI/CD Pipeline - OpenVPN-Install
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  lint-and-test:
+    name: Lint & Validate Scripts
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Install ShellCheck
+      run: sudo apt-get update && sudo apt-get install -y shellcheck
+    
+    - name: Lint shell scripts
+      run: |
+        shellcheck openvpn-install.sh || true
+        shellcheck scripts/*.sh || true
+    
+    - name: Validate script syntax
+      run: |
+        bash -n openvpn-install.sh
+        bash -n scripts/manage.sh
+        bash -n scripts/quick-install.sh
+    
+    - name: Check documentation
+      run: |
+        test -f README.md && echo "✓ README found"
+        test -f LICENSE && echo "✓ LICENSE found"
+        test -f SETUP_COMPLETE.md && echo "✓ Setup guide found"
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+    
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
+
+  release:
+    name: Create Release
+    needs: [lint-and-test, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          openvpn-install.sh
+          README.md
+          LICENSE
+        draft: false
+        prerelease: false
