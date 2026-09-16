@@ -1,67 +1,51 @@
 #!/bin/bash
-# Quick installation script with common presets
+# Quick installation with common presets.
+# Wraps ./openvpn-install.sh install with sensible defaults.
+# See ./openvpn-install.sh install --help for all available options.
 
-set -e
+set -euo pipefail
 
-# Color codes
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER="$SCRIPT_DIR/../openvpn-install.sh"
+
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
 echo -e "${BLUE}OpenVPN-Install Quick Setup${NC}\n"
 
-# Check if running as root
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run as root"
     exit 1
 fi
 
-# Preset configurations
-echo "Choose your setup:"
-echo "1) Quick Install (defaults, no IPv6, system DNS)"
-echo "2) Secure Install (IPv6 enabled, Unbound DNS)"
-echo "3) Custom Install (answer all questions)"
+if [[ -f /etc/openvpn/server.conf ]]; then
+    echo "OpenVPN is already installed - run './openvpn-install.sh' for the management menu." >&2
+    exit 1
+fi
 
-read -p "Select [1-3]: " -e -i 1 CHOICE
+echo "Choose your setup:"
+echo "1) Quick Install (defaults: UDP 1194, IPv4, Cloudflare DNS)"
+echo "2) Secure Install (IPv6 enabled, Unbound local DNS resolver, TLS 1.3 min)"
+echo "3) Custom Install (full interactive wizard)"
+
+read -rp "Select [1-3]: " -e -i 1 CHOICE
 
 case $CHOICE in
     1)
         echo -e "\n${GREEN}Starting quick installation...${NC}\n"
-        export AUTO_INSTALL=y
-        export APPROVE_INSTALL=y
-        export APPROVE_IP=y
-        export IPV6_SUPPORT=n
-        export PORT_CHOICE=1
-        export PROTOCOL_CHOICE=1
-        export DNS=1
-        export COMPRESSION_ENABLED=n
-        export CUSTOMIZE_ENC=n
-        export CLIENT=client
-        export PASS=1
+        "$INSTALLER" install --dns cloudflare
         ;;
     2)
         echo -e "\n${GREEN}Starting secure installation...${NC}\n"
-        export AUTO_INSTALL=y
-        export APPROVE_INSTALL=y
-        export APPROVE_IP=y
-        export IPV6_SUPPORT=y
-        export PORT_CHOICE=3
-        export PROTOCOL_CHOICE=1
-        export DNS=2
-        export COMPRESSION_ENABLED=n
-        export CUSTOMIZE_ENC=n
-        export CLIENT=client
-        export PASS=1
+        "$INSTALLER" install --client-ipv6 --dns unbound --tls-version-min 1.3
         ;;
     3)
-        echo -e "\n${GREEN}Starting custom installation...${NC}\n"
-        # No exports - manual mode
+        echo -e "\n${GREEN}Starting interactive installation...${NC}\n"
+        "$INSTALLER" install --interactive
         ;;
     *)
-        echo "Invalid choice"
+        echo "Invalid choice. Aborting."
         exit 1
         ;;
 esac
-
-# Run the main installer
-/home/rintu-chowdory/openvpn-install.sh

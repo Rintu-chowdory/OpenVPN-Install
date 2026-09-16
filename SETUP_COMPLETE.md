@@ -31,11 +31,13 @@ Your OpenVPN-Install shell project has been properly organized with a profession
 ## 📋 Files Created
 
 ### Core Files
-- **openvpn-install.sh** - Complete OpenVPN server installer (1000+ lines)
-  - Supports Debian, Ubuntu, CentOS, Amazon Linux, Fedora, Oracle Linux, Arch
-  - Interactive and automated installation modes
-  - Client certificate management
-  - Unbound DNS integration
+- **openvpn-install.sh** - Complete OpenVPN server installer (5000+ lines, synced with upstream angristan/openvpn-install, September 2026)
+  - Supports Debian, Ubuntu, CentOS, Amazon Linux, Fedora, Oracle Linux, Arch, Rocky, AlmaLinux, openSUSE
+  - Full CLI with subcommands: install, uninstall, client (add/list/revoke/renew), server (status/renew)
+  - Non-interactive mode with JSON output for automation
+  - firewalld and nftables support (iptables fallback), independent access policies (internet routing, client-to-client, local networks)
+  - Client certificate management with renewal and instant revocation disconnect
+  - Unbound DNS integration plus 10+ DNS providers
 
 - **README.md** - Professional documentation including:
   - Features overview
@@ -49,11 +51,11 @@ Your OpenVPN-Install shell project has been properly organized with a profession
 
 ### Helper Scripts
 - **scripts/manage.sh** - Management utility for:
-  - Adding new clients
-  - Revoking clients
-  - Checking OpenVPN status
-  - Viewing logs
-  - Restarting service
+  - Adding new clients (`add-client <name>`)
+  - Listing clients (`list-clients`)
+  - Revoking clients (`revoke-client <name>`)
+  - Checking server status (`status`)
+  - Restarting service (`restart`)
 
 - **scripts/quick-install.sh** - Quick setup with presets:
   - Quick install (defaults)
@@ -83,19 +85,21 @@ sudo ./scripts/quick-install.sh
 ```bash
 sudo chmod +x scripts/manage.sh
 sudo ./scripts/manage.sh status
-sudo ./scripts/manage.sh add-client
-sudo ./scripts/manage.sh logs
+sudo ./scripts/manage.sh add-client myphone
+sudo ./scripts/manage.sh list-clients
 ```
 
 ## ✨ Key Features
 
-✅ **Multi-Distribution Support** - Debian, Ubuntu, CentOS, Fedora, Arch, Rocky, AlmaLinux  
+✅ **Multi-Distribution Support** - Debian, Ubuntu, CentOS, Fedora, Arch, Rocky, AlmaLinux, openSUSE  
 ✅ **Security First** - Strong encryption defaults, ECDSA certificates  
 ✅ **Flexible Configuration** - Customizable ciphers, keys, compression  
 ✅ **IPv6 Support** - Optional IPv6 networking  
 ✅ **DNS Options** - Multiple providers including Unbound  
 ✅ **Easy Management** - Add/revoke clients, manage configuration  
-✅ **Automated Setup** - Non-interactive mode for scripting  
+✅ **Automated Setup** - Fully scriptable CLI with JSON output
+✅ **Certificate Renewal** - Renew client and server certificates without re-install
+✅ **Modern Firewalls** - firewalld, nftables, iptables fallback  
 ✅ **Clean Removal** - Safely uninstall with cleanup  
 
 ## 🔧 Configuration Highlights
@@ -104,7 +108,7 @@ sudo ./scripts/manage.sh logs
 - Cipher: AES-128-GCM
 - Key Exchange: ECDH with prime256v1
 - Authentication: SHA256
-- TLS: tls-crypt
+- TLS: tls-crypt-v2
 - Certificate: ECDSA
 
 **Network Configuration:**

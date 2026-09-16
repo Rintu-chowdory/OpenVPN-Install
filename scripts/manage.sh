@@ -1,17 +1,17 @@
 #!/bin/bash
-# OpenVPN-Install - Helper script to manage OpenVPN configuration
-# Usage: ./manage.sh [add-client|revoke-client|status|restart|logs]
+# OpenVPN-Install - Helper script to manage the OpenVPN server.
+# Wraps ./openvpn-install.sh client/server subcommands.
+# Usage: ./manage.sh <add-client|list-clients|revoke-client|status|restart>
 
-set -e
+set -euo pipefail
 
-OPENVPN_CONF="/etc/openvpn/server.conf"
-LOG_FILE="/var/log/openvpn/status.log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER="$SCRIPT_DIR/../openvpn-install.sh"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 function check_root() {
     if [[ $EUID -ne 0 ]]; then
@@ -21,103 +21,62 @@ function check_root() {
 }
 
 function check_openvpn() {
-    if [[ ! -f "$OPENVPN_CONF" ]]; then
+    if [[ ! -f /etc/openvpn/server.conf ]]; then
         echo -e "${RED}Error: OpenVPN is not installed${NC}"
+        echo "Run scripts/quick-install.sh or ./openvpn-install.sh first."
         exit 1
     fi
 }
 
-function add_client() {
-    echo -e "${YELLOW}Adding new OpenVPN client...${NC}"
-    /home/rintu-chowdory/openvpn-install.sh
-}
-
-function revoke_client() {
-    echo -e "${YELLOW}Revoking OpenVPN client...${NC}"
-    /home/rintu-chowdory/openvpn-install.sh
-}
-
-function status() {
-    echo -e "${GREEN}OpenVPN Status:${NC}"
-    systemctl status openvpn-server@server 2>/dev/null || systemctl status openvpn@server 2>/dev/null || echo "OpenVPN not running"
-    
-    if [[ -f "$LOG_FILE" ]]; then
-        echo -e "\n${GREEN}Recent connections:${NC}"
-        tail -20 "$LOG_FILE"
-    fi
-}
-
-function restart_openvpn() {
-    echo -e "${YELLOW}Restarting OpenVPN...${NC}"
-    systemctl restart openvpn-server@server 2>/dev/null || systemctl restart openvpn@server 2>/dev/null
-    echo -e "${GREEN}OpenVPN restarted${NC}"
-}
-
-function show_logs() {
-    echo -e "${GREEN}OpenVPN Logs:${NC}"
-    if [[ -f "$LOG_FILE" ]]; then
-        tail -f "$LOG_FILE"
-    else
-        echo "Log file not found"
-    fi
-}
-
-function show_config() {
-    echo -e "${GREEN}Current OpenVPN Configuration:${NC}"
-    grep -E "^(port|proto|cipher|auth|tls-)" "$OPENVPN_CONF" || echo "Could not read configuration"
-}
-
 function usage() {
-    cat << EOF
-OpenVPN-Install Management Script
-
-Usage: $(basename "$0") [COMMAND]
+    cat <<USAGE
+Usage: $0 <command>
 
 Commands:
-    add-client      Add a new client certificate
-    revoke-client   Revoke a client certificate
-    status          Show OpenVPN status
-    restart         Restart the OpenVPN service
-    logs            Tail the OpenVPN logs
-    config          Show current configuration
-    help            Show this help message
-
-Examples:
-    sudo $(basename "$0") add-client
-    sudo $(basename "$0") status
-    sudo $(basename "$0") logs
-
-EOF
+  add-client <name>     Add a new client (generates .ovpn in ~/clients)
+  list-clients          List all client certificates
+  revoke-client <name>  Revoke a client and disconnect it
+  status                Show OpenVPN server status
+  restart               Restart the OpenVPN service
+USAGE
 }
 
-# Main logic
-check_root
-check_openvpn
-
-case "${1:-help}" in
+COMMAND="${1:-}"
+shift || true
+case $COMMAND in
     add-client)
-        add_client
+        check_root
+        check_openvpn
+        NAME="${1:?Usage: $0 add-client <name>}"
+        "$INSTALLER" client add "$NAME"
+        echo -e "${GREEN}Client '$NAME' added. Config written to ~/clients/$NAME.ovpn${NC}"
+        ;;
+    list-clients)
+        check_openvpn
+        "$INSTALLER" client list
         ;;
     revoke-client)
-        revoke_client
+        check_root
+        check_openvpn
+        NAME="${1:?Usage: $0 revoke-client <name>}"
+        "$INSTALLER" client revoke "$NAME"
+        echo -e "${GREEN}Client '$NAME' revoked and disconnected.${NC}"
         ;;
     status)
-        status
+        "$INSTALLER" server status
         ;;
     restart)
-        restart_openvpn
+        check_root
+        check_openvpn
+        echo -e "${YELLOW}Restarting OpenVPN...${NC}"
+        systemctl restart openvpn@server
+        systemctl status openvpn@server --no-pager
         ;;
-    logs)
-        show_logs
-        ;;
-    config)
-        show_config
-        ;;
-    help)
+    ""|-h|--help)
         usage
         ;;
     *)
-        echo -e "${RED}Unknown command: $1${NC}"
+        echo -e "${RED}Unknown command: $COMMAND${NC}"
         usage
         exit 1
         ;;
